@@ -1,1 +1,1 @@
-# UMN-mIQ
+# Code for ``Modified Interative Q-learning''
