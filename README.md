@@ -1,1 +1,1 @@
-# R Code and example data for "On the Model Misspecification in Q-learning with Treatment Effect Heterogeneity (Modified Interative Q-learning)"
+# R Code for "Modified Interactive Q-learning for Attenuating the Impact of Model Misspecification with Treatment Effect Heterogeneity"
