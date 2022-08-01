@@ -7,13 +7,13 @@ library(gtable)
 library(lemon)
 library(scales)
 
-source("Functions.R")
+source("functions.R")
 
-##############################
-# data generative mechanism ##
-##############################
+###############################
+## data generative mechanism ##
+###############################
 
-# C = C2, gamma = C1
+# notation in the manuscript: C := c2, gamma := c1
 
 sigma <- 1
 
@@ -25,7 +25,6 @@ calcOut.homoA2 <- function(X1, A1, X2, A2, C){
   Y.exp <- as.matrix(H2)%*%beta20 + A2*(as.matrix(H2)%*%beta21)
   return(Y.exp)
 }
-
 calcOut.heteroA2 <- function(X1, A1, X2, A2, C){
   H2 <- cbind.data.frame("intercept" = rep(1, length(X1)), "X1" = X1, "A1" = A1, "X2" = X2)
   beta20 <- c(3, -1, 0.1, -0.1)
@@ -140,7 +139,7 @@ generateTestData.heteroA1 <- function(n = 10000, calcOut = calcOut.hetero, C = 1
 ####################
 #### simulation ####
 ####################
-# Aim 1: impact of an unmeasured variable on stage 1 rule identification
+## Aim 1 (preliminary study, results in Web Appendix): impact of an unmeasured variable on stage 1 rule identification
 set.seed(2021)
 sigma <- 1
 
@@ -185,8 +184,8 @@ for (i in 1:length(gamma.grid)){
   colnames(res.uncor) = colnames(res.cor) = colnames(res.heteroA1) = c("gamma", "sQ", "mQ", "IQ", "mIQ")
 }
 
-
-## Percentage of correctly identified $\hat{A}_1(X_1)$ and $\hat{A}_2(X_1,A_1^{\text{opt}},X2)$
+## Aim 2 (main manuscript): compare four methods for different sizes of heterogeneous treatment effects
+# metric: percentage of correctly identified dhat1(X1) and dhat2(X1,A1opt,X2)
 set.seed(2020)
 sim.imq <- function(n.train, n.test, C, gamma, n.sim){
   test <- generateTestData.heteroA1(n = n.test, calcOut = calcOut.heteroA2, C = C, gamma = gamma)
@@ -206,7 +205,6 @@ sim.imq <- function(n.train, n.test, C, gamma, n.sim){
   res <- c(C, gamma, apply(A1.perc, 2, mean))
   return(res)
 }
-
 res <- data.frame()
 C.grid <- seq(1, 3, 0.5) # for table
 gamma.grid <- c(0, 2, 4)
@@ -217,70 +215,3 @@ for (i in 1:length(gamma.grid)){
   }
 }
 write.csv(res, "pci_table_210804.csv", row.names = FALSE)
-
-res.fig <- data.frame()
-C.grid <- seq(1, 2, 0.2) # for plot
-gamma.grid <- c(0, 2, 4)
-for (i in 1:length(gamma.grid)){
-  for (j in 1:length(C.grid)){
-    res.fig <- rbind.data.frame(res.fig, sim.imq(n.train = 250, n.test = 10000, C = C.grid[j], gamma = gamma.grid[i], n.sim = 100))
-    colnames(res.fig) <- c("C", "gamma", "sQ", "mQ", "IQ", "mIQ")
-  }
-}
-write.csv(res.fig, "pci_figure_210804.csv", row.names = FALSE)
-
-
-# plot with respect to C and separate for gamma
-res <- read.csv("pci_figure_210804.csv")
-res.pci <- reshape(res, idvar = c("C", "gamma"), varying = list(3:6), v.names = "pci", times = names(res)[3:6], timevar = "method", direction = "long")
-res.pci$gamma <- factor(res.pci$gamma, levels = c("0", "2", "4"),
-                        labels = c(expression(c[1]==0), expression(c[1]==2), expression(c[1]==4)))
-pci.plot <- ggplot(res.pci, aes(x = C, y = pci, shape = method, color = method)) +
-  geom_line(aes(linetype = method)) + guides(linetype = FALSE) +
-  geom_point() +
-  labs(title = "", x = expression(c[2]), y = "PCI") +
-  ylim(0.8, 1) + scale_x_continuous(breaks = seq(1, 2, 0.2)) +
-  scale_shape_discrete(name = "Method",
-                       breaks = c("sQ", "mQ", "IQ", "mIQ"),
-                       labels = c("Standard Q-learning", "Modified Q-learning",
-                                  "Interactive Q-learning", "Modified Interactive Q-learning")) +
-  scale_color_discrete(name = "Method",
-                       breaks = c("sQ", "mQ", "IQ", "mIQ"),
-                       labels = c("Standard Q-learning", "Modified Q-learning",
-                                  "Interactive Q-learning", "Modified Interactive Q-learning")) + 
-  facet_wrap(~ gamma, ncol = 3, labeller = label_parsed) + 
-  theme(legend.position = "bottom", legend.title = element_text(size = 12), legend.text = element_text(size = 12), 
-        strip.text.x = element_text(size = 12), strip.text.y = element_text(size = 12))
-png(filename = "pci_210804.png", width = 27, height = 12, units = "cm", res = 600)
-pci.plot
-dev.off()
-
-
-## bias of stage 1 treatment effects
-sigma <- 1
-train <- generateTrainData.heteroA1(n = 10000, calcOut = calcOut.heteroA2, C = 1.5, gamma = 2)
-# mod.s2 <- glm(Y ~ X1 + A1 + X2 + A2 * (X1 + A1 + X2), data = train)
-# mod.s2.full <- glm(Y ~ X1 * A1 + X2 + A2 * (X1 + A1 + X2), data = train)
-# plot(fitted(mod.s2), resid(mod.s2), ylab = "Residuals", xlab = "X1*A1", main = "")
-# par(mfrow = c(2, 4))
-# plot(mod.s2)
-# plot(mod.s2.full)
-
-# note: both train data and test data are generated using generateTrainData()
-sQ.est <- function(train, test){
-  # stage 2 estimation
-  mod.s2 <- glm(Y ~ X1 + A1 + X2 + A2 * (X1 + A1 + X2), data = train)
-  train.opt <- predTrain(dat = train, trt.name = "A2", mod = mod.s2)
-  eff.s2 <- estEff(dat = test, trt.name = "A2", mod = mod.s2)
-  # stage 1 estimation
-  mod.s1 <- glm(Y ~ X1*A1, data = train.opt)
-  eff.s1 <- estEff(dat = test, trt.name = "A1", mod = mod.s1)
-  
-  return(list("eff.s1" = eff.s1, "eff.s2" = eff.s2))
-}
-# for each scenario, calculate bias of stage 1 treatment effects
-sim.bias <- function(n.train, n.test, generateTestData, generateTrainData, calcOut, C, gamma, n.sim){
-  test <- generateTrainData.corUV(n = 10000, calcOut = calcOut, C = C, gamma = gamma)
-  # calculate the true stage 2 main effect
-  (mean(test$Y[test$A2==-1]) + mean(test$Y[test$A2==1]))/2
-}
