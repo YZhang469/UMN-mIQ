@@ -214,4 +214,4 @@ for (i in 1:length(gamma.grid)){
     colnames(res) <- c("C", "gamma", "sQ", "mQ", "IQ", "mIQ")
   }
 }
-write.csv(res, "pci_table_210804.csv", row.names = FALSE)
+write.csv(res, "pci_table.csv", row.names = FALSE)
