@@ -1,5 +1,5 @@
 library(iqLearn)
-source("HelpFunctions.R")
+source("helpFunctions.R")
 
 # Q-learning
 sQ.pred <- function(train, test){
