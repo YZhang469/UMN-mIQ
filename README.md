@@ -3,7 +3,7 @@ Authors: Yuan Zhang, David M. Vock, Megan E. Patrick, Thomas A. Murray
 
 Code was written by Y. Zhang. Please address all questions or comments to yuan.zhang@pennmedicine.upenn.edu.
 
-This repository contains R code for the simulations conducted in the manuscript. The functions for interactive Q-learning are modified based on the R package `iqLearn` developed by Linn et al. (2015).
+This repository contains R code for the simulations and data analyses conducted in the manuscript. The functions for interactive Q-learning are modified based on the R package `iqLearn` developed by Linn et al. (2015).
 
 ## Simulation study
 
