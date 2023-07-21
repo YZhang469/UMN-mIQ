@@ -5,9 +5,11 @@ Code was written by Y. Zhang. Please address all questions or comments to yuan.z
 
 This repository contains R code for the simulations conducted in the manuscript.
 
-The functions for interactive Q-learning are modified based on Linn et al. (2015). The `iqLearn` functions need to be modified because, in the simulation, we use a test dataset with all counterfactual outcomes to assess the performance of each model.
+The functions for interactive Q-learning are modified based on the R package `iqLearn` developed by Linn et al. (2015).
 
 ## Simulation study
+
+In the simulation, we use a test dataset with all counterfactual outcomes to assess the performance of each model.
 
 ## Application
 
