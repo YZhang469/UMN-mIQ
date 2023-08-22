@@ -23,7 +23,9 @@ predTrain <- function(dat, trt.name, mod, modified = FALSE){
 }
 predTest <- function(dat, trt.name, mod){
   dat.opt <- dat
-  dat.opt$A1 <- dat.opt$A1opt # base estimation of A2 on true A1opt
+  if (trt.name == "A2"){
+    dat.opt$A1 <- dat.opt$A1opt # base estimation of A2 on true A1opt
+  }
   dat.n1 <- dat.opt
   dat.n1[, trt.name] <- -1
   dat.n1$Y <- predict(mod, newdata = dat.n1)
@@ -31,23 +33,15 @@ predTest <- function(dat, trt.name, mod){
   dat.1[, trt.name] <- 1
   dat.1$Y <- predict(mod, newdata = dat.1)
   dat.opt[, trt.name] <- ifelse(dat.n1$Y < dat.1$Y, -1, 1)
+  if (trt.name == "A2"){
+    dat.opt$main2hat <- (dat.n1$Y + dat.1$Y)/2
+    dat.opt$trt2hat <- (dat.1$Y - dat.n1$Y)/2
+  }
+  if (trt.name == "A1"){
+    dat.opt$HTE1hat <- dat.1$Y - dat.n1$Y
+    dat.opt$Yopthat <- pmin(dat.1$Y, dat.n1$Y)
+  }
   return(dat.opt)
-}
-getValue <- function(test.opt){
-  test.opt$name <- paste("Y(", test.opt$A1, ",", test.opt$A2, ")", sep = "")
-  value <- as.numeric(apply(test.opt, 1, function(x){x[names(x) == x[names(x) == "name"]]}))
-  return(mean(value))
-}
-estEff <- function(dat, trt.name, mod){
-  dat.n1 <- dat
-  dat.n1[, trt.name] <- -1
-  dat.n1$Y <- predict(mod, newdata = dat.n1)
-  dat.1 <- dat
-  dat.1[, trt.name] <- 1
-  dat.1$Y <- predict(mod, newdata = dat.1)
-  main <- mean(dat.n1$Y + dat.1$Y)/2
-  trt <- mean(dat.1$Y - dat.n1$Y)/2
-  return(list("mainEff" = main, "trtEff" = trt))
 }
 
 # for interactive Q-learning
