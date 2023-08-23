@@ -1,6 +1,6 @@
-###############################
-## Functions to Analyze Data ##
-###############################
+###############################################
+########## Functions to Analyze Data ##########
+###############################################
 
 # for non-interactive Q-learning
 predTrain <- function(dat, trt.name, mod, modified = FALSE){
@@ -120,9 +120,9 @@ learnIQ1Est <- function (mainObj, cmObj, sigObj, dens){
   list ("optA1" = optA1, "HTE1hat" = q1HatPos - q1HatNeg, "Yopthat" = pmin(q1HatPos, q1HatNeg))
 }
 
-##############################
-##### Modified Functions #####
-##############################
+########################################
+########## Modified Functions ##########
+########################################
 
 # for interactive Q-learning
 iqQ1MainEst <-
