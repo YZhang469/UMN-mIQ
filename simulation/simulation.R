@@ -1,138 +1,96 @@
-library(radiant.data)
 library(ggplot2)
-library(ggpubr)
-library(gridExtra)
-library(grid)
-library(gtable)
-library(lemon)
-library(scales)
 
 source("functions.R")
 
 ###############################
-## data generative mechanism ##
+## data generative functions ##
 ###############################
 
-# notation in the manuscript: C := c2, gamma := c1
-
-sigma <- 1
-
-# stage 1 heterogeneous effects
-calcOut.homoA2 <- function(X1, A1, X2, A2, C){
+# function to control stage 2 heterogeneous treatment effects
+calcEY <- function(X1, A1, X2, A2, c2, HTE2 = "homo"){ # HTE2 could be "homo" or "hetero"
   H2 <- cbind.data.frame("intercept" = rep(1, length(X1)), "X1" = X1, "A1" = A1, "X2" = X2)
   beta20 <- c(3, -1, 0.1, -0.1)
-  beta21 <- C * c(-6, 0, 5, 0)
-  Y.exp <- as.matrix(H2)%*%beta20 + A2*(as.matrix(H2)%*%beta21)
-  return(Y.exp)
-}
-calcOut.heteroA2 <- function(X1, A1, X2, A2, C){
-  H2 <- cbind.data.frame("intercept" = rep(1, length(X1)), "X1" = X1, "A1" = A1, "X2" = X2)
-  beta20 <- c(3, -1, 0.1, -0.1)
-  beta21 <- C * c(-6, -4, 5, -0.2)
-  Y.exp <- as.matrix(H2)%*%beta20 + A2*(as.matrix(H2)%*%beta21)
-  return(Y.exp)
+  if (HTE2 == "homo"){
+    beta21 <- c2 * c(-6, 0, 5, 0)
+  }
+  else if (HTE2 == "hetero"){
+    beta21 <- c2 * c(-6, -4, 5, -0.2)
+  }
+  EY <- as.matrix(H2)%*%beta20 + A2*(as.matrix(H2)%*%beta21)
+  return(EY)
 }
 
-# function to generate a training dataset
-generateTrainData.uncorUV <- function(n = 250, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
+# function to control stage 1 heterogeneous treatment effects (and omitted variables)
+generateTrainData <- function(n = 250, 
+                              UV = "HTE1", c1 = 0, 
+                              c2 = 1.5, HTE2 = "homo"){ # UV could be "uncorrelated", "correlated", or "HTE1"
   X1 <- rnorm(n, -2, 1)
   A1 <- 2 * rbinom(n, 1, 0.5) - 1
   A2 <- 2 * rbinom(n, 1, 0.5) - 1
   epsilon <- rnorm(n, 0, 2)
   X2 <- X1 + epsilon
   phi <- rnorm(n, 0, sigma) # sd(phi) is too small, 7-12 is appropriate
-  # unmeasured variable uncorrelated with stage 2 main effects predictors
-  V <- rnorm(n, -1, 1)
-  Y <- calcOut(X1, A1, X2, A2, C) + gamma*V + phi
-  train <- data.frame("ID" = 1:n, "X1" = X1, "A1" = A1, "X2" = X2, "A2" = A2, "Y" = Y)
-  return(train)
-}
-generateTrainData.corUV <- function(n = 250, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
-  X1 <- rnorm(n, -2, 1)
-  A1 <- 2 * rbinom(n, 1, 0.5) - 1
-  A2 <- 2 * rbinom(n, 1, 0.5) - 1
-  epsilon <- rnorm(n, 0, 2)
-  X2 <- X1 + epsilon
-  phi <- rnorm(n, 0, sigma)
-  # unmeasured variable correlated with stage 2 main effects predictors
-  V <- rnorm(n, 2*X1*X2, 1)
-  Y <- calcOut(X1, A1, X2, A2, C) + gamma*V + phi
-  train <- data.frame("ID" = 1:n, "X1" = X1, "A1" = A1, "X2" = X2, "A2" = A2, "Y" = Y)
-  return(train)
-}
-generateTrainData.heteroA1 <- function(n = 250, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
-  X1 <- rnorm(n, -2, 1)
-  A1 <- 2 * rbinom(n, 1, 0.5) - 1
-  A2 <- 2 * rbinom(n, 1, 0.5) - 1
-  epsilon <- rnorm(n, 0, 2)
-  X2 <- X1 + epsilon
-  phi <- rnorm(n, 0, sigma)
-  Y <- calcOut(X1, A1, X2, A2, C) + gamma*X1*A1 + phi
+  if (UV == "uncorrelated"){
+    # unmeasured variable uncorrelated with stage 2 main effects predictors
+    V <- rnorm(n, -1, 1)
+  }
+  else if (UV == "correlated"){
+    # unmeasured variable correlated with stage 2 main effects predictors
+    V <- rnorm(n, 2*X1*X2, 1)
+  }
+  else if (UV == "HTE1"){
+    V <- X1*A1
+  }
+  Y <- calcEY(X1, A1, X2, A2, c2, HTE2) + c1*V + phi
   train <- data.frame("ID" = 1:n, "X1" = X1, "A1" = A1, "X2" = X2, "A2" = A2, "Y" = Y)
   return(train)
 }
 
-# function to generate a test dataset with all potential outcomes
-generateTestData.uncorUV <- function(n = 10000, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
+generateTestData <- function(n = 10000, 
+                             UV = "HTE1", c1 = 0, 
+                             c2 = 1.5, HTE2 = "homo"){ # UV could be "uncorrelated", "correlated", or "HTE1"
   X1 <- rnorm(n, -2, 1)
   epsilon <- rnorm(n, 0, 2)
   X2 <- X1 + epsilon
   phi <- rnorm(n, 0, sigma)
-  V <- rnorm(n, -1, 1)
-  Y.1.1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(1, n), C) + gamma*V + phi
-  Y.1.n1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), C) + gamma*V + phi
-  Y.n1.1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), C) + gamma*V + phi
-  Y.n1.n1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), C) + gamma*V + phi
+  if (UV == "uncorrelated"){
+    V <- rnorm(n, -1, 1)
+    Y.1.1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(1, n), c2, HTE2) + c1*V + phi
+    Y.1.n1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), c2, HTE2) + c1*V + phi
+    Y.n1.1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), c2, HTE2) + c1*V + phi
+    Y.n1.n1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), c2, HTE2) + c1*V + phi
+  }
+  else if (UV == "correlated"){
+    V <- rnorm(n, 2*X1*X2, 1)
+    Y.1.1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(1, n), c2, HTE2) + c1*V + phi
+    Y.1.n1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), c2, HTE2) + c1*V + phi
+    Y.n1.1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), c2, HTE2) + c1*V + phi
+    Y.n1.n1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), c2, HTE2) + c1*V + phi
+  }
+  else if (UV == "HTE1"){
+    Y.1.1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(1, n), c2, HTE2) + c1*X1 + phi
+    Y.1.n1 <- calcEY(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), c2, HTE2) + c1*X1 + phi
+    Y.n1.1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), c2, HTE2) - c1*X1 + phi
+    Y.n1.n1 <- calcEY(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), c2, HTE2) - c1*X1 + phi
+  }
+  HTE1_1 <- Y.1.1 - Y.n1.1
+  HTE1_n1 <- Y.1.n1 - Y.n1.n1
+  trt2_1 <- (Y.1.1 - Y.1.n1)/2
+  trt2_n1 <- (Y.n1.1 - Y.n1.n1)/2
+  main2_1 <- (Y.1.1 + Y.1.n1)/2 - phi
+  main2_n1 <- (Y.n1.1 + Y.n1.n1)/2 - phi
   test <- data.frame("ID" = 1:n, "X1" = X1, "X2" = X2, 
                      "Y(1,1)" = Y.1.1, "Y(1,-1)" = Y.1.n1, 
                      "Y(-1,1)" = Y.n1.1, "Y(-1,-1)" = Y.n1.n1, 
-                     "Yopt" = pmin(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE), 
+                     "Yopt" = pmin(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1), 
                      check.names = FALSE)
-  trt.ind <- which.pmin(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE)
+  dtr.opt <- apply(cbind.data.frame(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1), 1, which.min)
   # optimal treatments
-  test$A1opt <- ifelse(trt.ind == 1|trt.ind == 2, 1, -1)
-  test$A2opt <- ifelse(trt.ind == 1|trt.ind == 3, 1, -1)
-  return(test)
-}
-generateTestData.corUV <- function(n = 10000, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
-  X1 <- rnorm(n, -2, 1)
-  epsilon <- rnorm(n, 0, 2)
-  X2 <- X1 + epsilon
-  phi <- rnorm(n, 0, sigma)
-  V <- rnorm(n, 2*X1*X2, 1)
-  Y.1.1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(1, n), C) + gamma*V + phi
-  Y.1.n1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), C) + gamma*V + phi
-  Y.n1.1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), C) + gamma*V + phi
-  Y.n1.n1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), C) + gamma*V + phi
-  test <- data.frame("ID" = 1:n, "X1" = X1, "X2" = X2, 
-                     "Y(1,1)" = Y.1.1, "Y(1,-1)" = Y.1.n1, 
-                     "Y(-1,1)" = Y.n1.1, "Y(-1,-1)" = Y.n1.n1, 
-                     "Yopt" = pmax(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE), 
-                     check.names = FALSE)
-  trt.ind <- which.pmin(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE)
-  # optimal treatments
-  test$A1opt <- ifelse(trt.ind == 1|trt.ind == 2, 1, -1)
-  test$A2opt <- ifelse(trt.ind == 1|trt.ind == 3, 1, -1)
-  return(test)
-}
-generateTestData.heteroA1 <- function(n = 10000, calcOut = calcOut.hetero, C = 1.5, gamma = 0){
-  X1 <- rnorm(n, -2, 1)
-  epsilon <- rnorm(n, 0, 2)
-  X2 <- X1 + epsilon
-  phi <- rnorm(n, 0, sigma)
-  Y.1.1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(1, n), C) + gamma*X1 + phi
-  Y.1.n1 <- calcOut(X1, A1 = rep(1, n), X2, A2 = rep(-1, n), C) + gamma*X1 + phi
-  Y.n1.1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(1, n), C) - gamma*X1 + phi
-  Y.n1.n1 <- calcOut(X1, A1 = rep(-1, n), X2, A2 = rep(-1, n), C) - gamma*X1 + phi
-  test <- data.frame("ID" = 1:n, "X1" = X1, "X2" = X2, 
-                     "Y(1,1)" = Y.1.1, "Y(1,-1)" = Y.1.n1, 
-                     "Y(-1,1)" = Y.n1.1, "Y(-1,-1)" = Y.n1.n1, 
-                     "Yopt" = pmax(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE), 
-                     check.names = FALSE)
-  trt.ind <- which.pmin(Y.1.1, Y.1.n1, Y.n1.1, Y.n1.n1, na.rm = TRUE)
-  # optimal treatments
-  test$A1opt <- ifelse(trt.ind == 1|trt.ind == 2, 1, -1)
-  test$A2opt <- ifelse(trt.ind == 1|trt.ind == 3, 1, -1)
+  test$A1opt <- ifelse(dtr.opt == 1|dtr.opt == 2, 1, -1)
+  test$A2opt <- ifelse(dtr.opt == 1|dtr.opt == 3, 1, -1)
+  test$HTE1 <- ifelse(test$A2opt == 1, HTE1_1, HTE1_n1)
+  test$trt2 <- ifelse(test$A1opt == 1, trt2_1, trt2_n1)
+  test$main2 <- ifelse(test$A1opt == 1, main2_1, main2_n1)
   return(test)
 }
 
