@@ -109,3 +109,9 @@ imQ.pred <- function(train, test){
               "HTE1hat" = test.opt$HTE1hat, "Yopthat" = test.opt$Yopthat, 
               "trt2hat" = test.opt$trt2hat, "main2hat" = test.opt$main2hat))
 }
+
+sumMetric <- function(x){
+  x <- as.numeric(x)
+  paste(round(mean(x, na.rm = TRUE), 3), 
+        " (", round(sd(x, na.rm = TRUE), 3), ")", sep = "")
+}
