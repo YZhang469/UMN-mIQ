@@ -117,7 +117,7 @@ learnIQ1Est <- function (mainObj, cmObj, sigObj, dens){
   ## Vector of optimal first-stage txts
   optA1 = ifelse(q1HatPos < q1HatNeg, 1, -1);
   
-  list ("optA1" = optA1)
+  list ("optA1" = optA1, "HTE1hat" = q1HatPos - q1HatNeg, "Yopthat" = pmin(q1HatPos, q1HatNeg))
 }
 
 ##############################
