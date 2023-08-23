@@ -7,9 +7,10 @@ This repository contains R code for the simulations and data analyses conducted 
 
 ## Simulation study
 
-In the simulation, we use a test dataset with all counterfactual outcomes to assess the performance of each model.
+The document [simulation.R](https://github.com/YZhang469/UMN-mIQ/blob/main/simulation/simulation.R) contains the code for the preliminary simulation study (Supplementary Materials Appendix C) and the main simulation study (Section 5). In the simulation, we use a test dataset with all counterfactual outcomes to assess the performance of each model. Therefore, [helpFunctions.R](https://github.com/YZhang469/UMN-mIQ/blob/main/simulation/helpFunctions.R) and [functions.R](https://github.com/YZhang469/UMN-mIQ/blob/main/simulation/functions.R) are required.
 
 ## Application
+The document [analysis.R](https://github.com/YZhang469/UMN-mIQ/blob/main/application/analysis.R) contains the code for the data analysis (results shown in Section 6).
 
 ## Reference
 * Linn, K. A., Laber, E. B., & Stefanski, L. A. (2015). iqLearn: Interactive Q-Learning in R. Journal of Statistical Software, 64(1), 1–25. https://doi.org/10.18637/jss.v064.i01
