@@ -2,9 +2,9 @@ library(ggplot2)
 
 source("functions.R")
 
-###############################
-## data generative functions ##
-###############################
+###############################################
+########## Data Generative Functions ##########
+###############################################
 
 # function to control stage 2 heterogeneous treatment effects
 calcEY <- function(X1, A1, X2, A2, c2, HTE2 = "homo"){ # HTE2 could be "homo" or "hetero"
@@ -94,19 +94,23 @@ generateTestData <- function(n = 10000,
   return(test)
 }
 
-####################
-#### simulation ####
-####################
-## Aim 1 (preliminary study, results in Web Appendix): impact of an unmeasured variable on stage 1 rule identification
-set.seed(2021)
+############################################
+########## Preliminary Simulation ##########
+############################################
+
+# Impact of an unmeasured variable on stage 1 rule identification
+
 sigma <- 1
 
-sim.uv <- function(n.train, n.test, generateTestData, generateTrainData, calcOut, gamma, n.sim){
-  test <- generateTestData(n = n.test, calcOut = calcOut, C = 1.5, gamma = gamma)
+sim.uv <- function(n.sim, n.train, n.test, UV, c1){
+  test <- generateTestData(n = n.test, UV = UV, c1 = c1, c2 = 1.5, HTE2 = "homo")
   A1.perc <- data.frame(matrix(ncol = 4, nrow = n.sim))
+  A2.perc <- data.frame(matrix(ncol = 4, nrow = n.sim))
+  trt2.bias <- rep(NA, n.sim)
+  main2.bias <- rep(NA, n.sim)
   colnames(A1.perc) = c("sQ", "mQ", "IQ", "mIQ")
   for (i in 1:n.sim){
-    train <- generateTrainData(n = n.train, calcOut = calcOut, C = 1.5, gamma = gamma)
+    train <- generateTrainData(n = n.train, UV = UV, c1 = c1, c2 = 1.5, HTE2 = "homo")
     res.sQ <- sQ.pred(train, test)
     res.mQ <- mQ.pred(train, test)
     res.iQ <- iQ.pred(train, test)
