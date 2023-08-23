@@ -34,7 +34,7 @@ mQ.pred <- function(train, test){
 }
 
 # interactive Q-learning
-iQ.pred <- function(train, test){
+IQ.pred <- function(train, test){
   ## stage 2 prediction
   # estimate stage 2 model using training data
   # fitIQ2 <- learnIQ2(Y ~ X1 + A1 + X2 + A2 * (X1 + A1 + X2), data = train, treatName = "A2", intNames = c("X1", "A1", "X2"))
@@ -73,7 +73,7 @@ iQ.pred <- function(train, test){
 }
 
 # modified interactive Q-learning
-imQ.pred <- function(train, test){
+mIQ.pred <- function(train, test){
   # step 1: regress Y on H2 and A2 to obtain Q2(H2,A2)
   s2vars <- train[, c(2:4)]
   s2ints <- 1:3
