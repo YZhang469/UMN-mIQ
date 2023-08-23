@@ -113,67 +113,137 @@ sim.uv <- function(n.sim, n.train, n.test, UV, c1){
     train <- generateTrainData(n = n.train, UV = UV, c1 = c1, c2 = 1.5, HTE2 = "homo")
     res.sQ <- sQ.pred(train, test)
     res.mQ <- mQ.pred(train, test)
-    res.iQ <- iQ.pred(train, test)
-    res.imQ <- imQ.pred(train, test)
-    A1.perc[i, ] <- c(sum(res.sQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.mQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.iQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.imQ$A1opt == test$A1opt)/nrow(test))
+    res.IQ <- IQ.pred(train, test)
+    res.mIQ <- mIQ.pred(train, test)
+    A1.perc[i, ] <- c(sum(res.sQ$d1opt == test$A1opt)/n.test, 
+                      sum(res.mQ$d1opt == test$A1opt)/n.test, 
+                      sum(res.IQ$d1opt == test$A1opt)/n.test, 
+                      sum(res.mIQ$d1opt == test$A1opt)/n.test)
+    A2.perc[i, ] <- c(sum(res.sQ$d2opt == test$A2opt)/n.test, 
+                      sum(res.mQ$d2opt == test$A2opt)/n.test, 
+                      sum(res.IQ$d2opt == test$A2opt)/n.test, 
+                      sum(res.mIQ$d2opt == test$A2opt)/n.test)
+    trt2.bias[i] <- mean(res.sQ$trt2hat - test$trt2)
+    main2.bias[i] <- mean(res.sQ$main2hat - test$main2)
   }
-  res <- c(gamma, apply(A1.perc, 2, mean))
-  return(res)
-}
-res.uncor <- data.frame()
-res.cor <- data.frame()
-res.heteroA1 <- data.frame()
-gamma.grid <- seq(0, 4, 1)
-for (i in 1:length(gamma.grid)){
-  res.uncor <- rbind.data.frame(res.uncor, sim.uv(n.train = 250, n.test = 10000, 
-                                                  generateTestData = generateTestData.uncorUV, 
-                                                  generateTrainData = generateTrainData.uncorUV, 
-                                                  calcOut = calcOut.homoA2, 
-                                                  gamma = gamma.grid[i], n.sim = 100))
-  res.cor <- rbind.data.frame(res.cor, sim.uv(n.train = 250, n.test = 10000, 
-                                              generateTestData = generateTestData.corUV, 
-                                              generateTrainData = generateTrainData.corUV, 
-                                              calcOut = calcOut.homoA2, 
-                                              gamma = gamma.grid[i], n.sim = 100))
-  res.heteroA1 <- rbind.data.frame(res.heteroA1, sim.uv(n.train = 250, n.test = 10000, 
-                                                        generateTestData = generateTestData.heteroA1, 
-                                                        generateTrainData = generateTrainData.heteroA1, 
-                                                        calcOut = calcOut.homoA2, 
-                                                        gamma = gamma.grid[i], n.sim = 100))
-  colnames(res.uncor) = colnames(res.cor) = colnames(res.heteroA1) = c("gamma", "sQ", "mQ", "IQ", "mIQ")
+  res.perc <- c(c1, apply(A1.perc, 2, mean), apply(A2.perc, 2, mean))
+  res.bias <- c(c1, sumMetric(trt2.bias), sumMetric(main2.bias))
+  
+  return(res = list("res.perc" = res.perc, "res.bias" = res.bias))
 }
 
-## Aim 2 (main manuscript): compare four methods for different sizes of heterogeneous treatment effects
-# metric: percentage of correctly identified dhat1(X1) and dhat2(X1,A1opt,X2)
-set.seed(2020)
-sim.imq <- function(n.train, n.test, C, gamma, n.sim){
-  test <- generateTestData.heteroA1(n = n.test, calcOut = calcOut.heteroA2, C = C, gamma = gamma)
+set.seed(2021)
+res.perc.uncor <- data.frame()
+res.perc.cor <- data.frame()
+res.perc.HTE1 <- data.frame()
+res.bias.uncor <- data.frame()
+res.bias.cor <- data.frame()
+res.bias.HTE1 <- data.frame()
+c1.grid <- seq(0, 4, 1)
+for (i in 1:length(c1.grid)){
+  res.uncor <- sim.uv(n.sim = 100, n.train = 250, n.test = 10000, UV = "uncorrelated", c1 = c1.grid[i])
+  res.cor <- sim.uv(n.sim = 100, n.train = 250, n.test = 10000, UV = "correlated", c1 = c1.grid[i])
+  res.HTE1 <- sim.uv(n.sim = 100, n.train = 250, n.test = 10000, UV = "HTE1", c1 = c1.grid[i])
+  res.perc.uncor <- rbind.data.frame(res.perc.uncor, res.uncor$res.perc)
+  res.perc.cor <- rbind.data.frame(res.perc.cor, res.cor$res.perc)
+  res.perc.HTE1 <- rbind.data.frame(res.perc.HTE1, res.HTE1$res.perc)
+  res.bias.uncor <- rbind.data.frame(res.bias.uncor, res.uncor$res.bias)
+  res.bias.cor <- rbind.data.frame(res.bias.cor, res.cor$res.bias)
+  res.bias.HTE1 <- rbind.data.frame(res.bias.HTE1, res.HTE1$res.bias)
+}
+colnames(res.perc.uncor) = colnames(res.perc.cor) = colnames(res.perc.HTE1) = c("c1", "sQ1", "mQ1", "IQ1", "mIQ1", "sQ2", "mQ2", "IQ2", "mIQ2")
+colnames(res.bias.uncor) = colnames(res.bias.cor) = colnames(res.bias.HTE1) = c("c1", "trt2", "main2")
+res.perc1 <- rbind(round(res.perc.uncor$sQ1, digits = 3), round(res.perc.cor$sQ1, digits = 3), round(res.perc.HTE1$sQ1, digits = 3), 
+                   round(res.perc.uncor$IQ1, digits = 3), round(res.perc.cor$IQ1, digits = 3), round(res.perc.HTE1$IQ1, digits = 3))
+res.bias2 <- rbind(res.bias.uncor$main2, res.bias.cor$main2, res.bias.HTE1$main2, 
+                   res.bias.uncor$trt2, res.bias.cor$trt2, res.bias.HTE1$trt2)
+
+#####################################
+########## Main Simulation ##########
+#####################################
+
+sigma <- 1
+
+sim <- function(n.sim, n.train, n.test, c1, c2){
+  test <- generateTestData(n = n.test, UV = "HTE1", c1 = c1, c2 = c2, HTE2 = "hetero")
+  # Metric 1: percentage of correctly identified $\hat{d}_1^{\text{opt}}(X_1)$ and $\hat{d}_2^{\text{opt}}(X_1,A_1^{\text{opt}},X2)$
   A1.perc <- data.frame(matrix(ncol = 4, nrow = n.sim))
+  # Metric 2: bias of the optimal value
+  Yopt.bias <- data.frame(matrix(ncol = 4, nrow = n.sim))
   colnames(A1.perc) = c("sQ", "mQ", "IQ", "mIQ")
-  for (i in 1:n.sim){
-    train <- generateTrainData.heteroA1(n = n.train, calcOut = calcOut.heteroA2, C = C, gamma = gamma)
+  for (iter in 1:n.sim){
+    train <- generateTrainData(n = n.train, UV = "HTE1", c1 = c1, c2 = c2, HTE2 = "hetero")
     res.sQ <- sQ.pred(train, test)
     res.mQ <- mQ.pred(train, test)
-    res.iQ <- iQ.pred(train, test)
-    res.imQ <- imQ.pred(train, test)
-    A1.perc[i, ] <- c(sum(res.sQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.mQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.iQ$A1opt == test$A1opt)/nrow(test), 
-                      sum(res.imQ$A1opt == test$A1opt)/nrow(test))
+    res.IQ <- IQ.pred(train, test)
+    res.mIQ <- mIQ.pred(train, test)
+    A1.perc[iter, ] <- c(sum(res.sQ$d1opt == test$A1opt)/n.test, 
+                         sum(res.mQ$d1opt == test$A1opt)/n.test, 
+                         sum(res.IQ$d1opt == test$A1opt)/n.test, 
+                         sum(res.mIQ$d1opt == test$A1opt)/n.test)
+    Yopt.bias[iter, ] <- c(mean(res.sQ$Yopthat-test$Yopt), 
+                           mean(res.mQ$Yopthat-test$Yopt), 
+                           mean(res.IQ$Yopthat-test$Yopt), 
+                           mean(res.mIQ$Yopthat-test$Yopt))
   }
-  res <- c(C, gamma, apply(A1.perc, 2, mean))
-  return(res)
+  return(list("res.A1" = c(c1, c2, apply(A1.perc, 2, mean)), 
+              "res.Yopt" = c(c1, c2, apply(Yopt.bias, 2, sumMetric))))
 }
-res <- data.frame()
-C.grid <- seq(1, 3, 0.5) # for table
-gamma.grid <- c(0, 2, 4)
-for (i in 1:length(gamma.grid)){
-  for (j in 1:length(C.grid)){
-    res <- rbind.data.frame(res, sim.imq(n.train = 250, n.test = 10000, C = C.grid[j], gamma = gamma.grid[i], n.sim = 100))
-    colnames(res) <- c("C", "gamma", "sQ", "mQ", "IQ", "mIQ")
+
+set.seed(2023)
+res.Yopt <- data.frame()
+c1.grid <- c(0, 2, 4)
+c2.grid <- seq(1, 3, 1) # for table
+for (i in 1:length(c1.grid)){
+  for (j in 1:length(c2.grid)){
+    res.sim <- sim(n.sim = 100, n.train = 250, n.test = 10000, c1 = c1.grid[i], c2 = c2.grid[j])
+    res.Yopt <- rbind.data.frame(res.Yopt, res.sim$res.Yopt)
   }
 }
-write.csv(res, "pci_table.csv", row.names = FALSE)
+
+res.A1 <- data.frame()
+c1.grid <- c(0, 2, 4)
+c2.grid <- seq(0, 3, 0.2) # for figure
+for (i in 1:length(c1.grid)){
+  for (j in 1:length(c2.grid)){
+    res.sim <- sim(n.sim = 1000, n.train = 250, n.test = 10000, c1 = c1.grid[i], c2 = c2.grid[j])
+    res.A1 <- rbind.data.frame(res.A1, res.sim$res.A1)
+  }
+}
+
+colnames(res.A1) = colnames(res.Yopt) = c("c1", "c2", "sQ", "mQ", "IQ", "mIQ")
+
+write.csv(res.Yopt, "Yopt.csv", row.names = FALSE)
+write.csv(res.A1, "A1.csv", row.names = FALSE)
+
+res.pci <- reshape(res.A1, idvar = c("c1", "c2"), varying = list(3:6), v.names = "pci", times = names(res)[3:6], timevar = "method", direction = "long")
+res.pci$c1 <- factor(res.pci$c1, levels = c("0", "2", "4"),
+                     labels = c(expression(c[1]==0), expression(c[1]==2), expression(c[1]==4)))
+pci.plot <- ggplot(res.pci, aes(x = c2, y = pci, shape = method, color = method, size = method)) +
+  geom_line(size = 0.8) + guides(linetype = FALSE) +
+  geom_point() +
+  labs(title = "", x = expression(c[2]), y = "PCI") +
+  ylim(0.8, 1) + scale_x_continuous(breaks = seq(0, 3, 0.5)) +
+  scale_shape_manual(values = c(15, 16, 17, 18), 
+                     name = "Method",
+                     breaks = c("sQ", "mQ", "IQ", "mIQ"),
+                     labels = c("Standard Q-learning", "Modified Q-learning",
+                                "Interactive Q-learning", "Modified Interactive Q-learning")) + 
+  scale_color_manual(# values = c("darkgoldenrod", "cadetblue", "lightsalmon", "darkolivegreen4"), 
+                     # values = c("#D7FFF1", "#8CD790", "#77AF9C", "#285943"), 
+                     values = c("#9DC8C8", "#58C9B9", "#519D9E", "#285943"), 
+                     name = "Method",
+                     breaks = c("sQ", "mQ", "IQ", "mIQ"),
+                     labels = c("Standard Q-learning", "Modified Q-learning",
+                                "Interactive Q-learning", "Modified Interactive Q-learning")) + 
+  scale_size_manual(values = c(2.5, 3, 2.5, 3.5), 
+                    name = "Method",
+                    breaks = c("sQ", "mQ", "IQ", "mIQ"),
+                    labels = c("Standard Q-learning", "Modified Q-learning",
+                               "Interactive Q-learning", "Modified Interactive Q-learning")) + 
+  facet_wrap(~ c1, ncol = 3, labeller = label_parsed) + 
+  theme(legend.position = "bottom", legend.title = element_text(size = 12), legend.text = element_text(size = 12), 
+        strip.text.x = element_text(size = 12), strip.text.y = element_text(size = 12))
+png(filename = "pci.png", width = 27, height = 12, units = "cm", res = 600)
+pci.plot
+dev.off()
